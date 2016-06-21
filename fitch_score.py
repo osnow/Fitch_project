@@ -1,31 +1,53 @@
+#!/usr/bin/env python
+
 from Bio import Phylo
-#from cStringIO import StringIO
-import json
+from Bio import SeqIO
+import re
 
 tree = Phylo.read('tree.txt', 'newick') #read from file
-#tree = Phylo.read(StringIO("((A,G),T),(((G,G),A),((T,T),A));"), "newick") #Hardcoded as string
 
-#if not tree.rooted:
-	#tree.root_at_midpoint() #couldn't get this to work properly, supposed to root tree if unrooted
+# topology related functions from Nanjiang
+GAP = '-'
+def GetNtermState(topo):#{{{
+    if topo[0] != GAP:
+        return topo[0]
+    else:
+        topo=topo.lstrip(GAP)
+        if topo != "":
+            return topo[0]
+        else:
+            return None
 
-# sort tree terminals/leaves 
-terms = tree.get_terminals()
-terms.sort(key=lambda term: term.name)
+def GetTMPosition_gapless(topo):#{{{
+    """
+    Get the position of TM helices given the topology (without gaps)
+    The return value is a list of 2-tuples: [ (beg, end), (beg, end)...]
+    """
+    posTM=[]
+    m=re.finditer("(M+)",topo)
+    for i in m:
+        posTM.append((i.start(0), i.end(0)))
+    return posTM
 
-# Dictionary of proteins and number of TMs
-#alignment = {n.split(',')[0]: n.split(',')[1] for n in open("TMs.txt",'r').read().splitlines()}
+def CountTM(topo):#{{{
+    """Count the number of TM regions in a topology with or without gaps"""
+    return len(GetTMPosition_gapless(topo))
 
-fpin = open("scores.json",'r')
-score_matrix = json.load(fpin) # load scores from json file 
+#make dictionary of protein IDs and their topologies from topology file using SeqIO
+topos = {}
+for seq_record in SeqIO.parse("TMs.txt", "fasta"):
+	if GetNtermState(seq_record.seq) == 'i':
+		nterm = '-'
+	else:
+		nterm = '+'
+	topos[seq_record.id[3:9]] = nterm + str(CountTM(str(seq_record.seq)))
+	
+#print topos
 
 count = 0
-#clade_states = dict(zip(terms, [set([alignment[c.name]]) for c in terms])) # make dict of leaves and a set for TM
 
 for clade in tree.get_nonterminals(order="postorder"): #Gets internal nodes in a list going up the tree
 	sub_branches = clade.clades #the children of each internal node
-	#state1 = clade_states[sub_branches[0]] # get letter of each child
-	#state2 = clade_states[sub_branches[1]]
-	#state = state1 & state2 
 	state1 = [] # I want these as lists so I can iterate through them 
 	state2 = []
 	if type(sub_branches[0].name) == str: # This block is pretty ugly but I couldn't find a 
@@ -40,20 +62,15 @@ for clade in tree.get_nonterminals(order="postorder"): #Gets internal nodes in a
 
 	clade.name = []
 	match = 0
-	"""iterate through each item the child nodes and check if combination is in dict and get value
+	"""iterate through each item the child nodes and check if their topologies are the same
 	if there are no matching pairs, then iterate the count and label the next node with those names"""
 	for n in state1: 
 		for i in state2:
-			if n+'\t'+i in score_matrix and score_matrix[n+'\t'+i] == 1:
+			print topos[n], topos[i]
+			if topos[n] == topos[i]:
 				clade.name = [n]
 				print 'match'
 				match +=1
-				break
-
-			elif i+'\t'+n in score_matrix and score_matrix[i+'\t'+n] == 1:
-				clade.name = [n]
-				print 'match'
-				match += 1
 				break
 					
 	if match == 0:
@@ -61,18 +78,7 @@ for clade in tree.get_nonterminals(order="postorder"): #Gets internal nodes in a
 		clade.name.extend(state2)
 		count+=1
 		print "no match"
-
-	print count 
 	
-	# from previous version that used number of TM segments 
-	'''if not state: #if states not same, make set of two states and increment count
-		state = state1 | state2
-		count = count + 1
-	clade_states[clade] = state
-	print "internal node =", ' '.join(state)''' # print states and count so you can see how it traverses the tree
-
-print "score =", count # count is equal to the number of mutations that have happened 
+	print "score =", count # count is equal to the number of mutations that have happened 
 
 
-
-fpin.close()
