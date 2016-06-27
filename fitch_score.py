@@ -3,8 +3,9 @@
 from Bio import Phylo
 from Bio import SeqIO
 import re
+import matplotlib.pyplot as plt
 
-tree = Phylo.read('tree.txt', 'newick') #read from file
+tree = Phylo.read('Tree.txt', 'newick') #read from file into tree object
 
 # topology related functions from Nanjiang
 GAP = '-'
@@ -41,12 +42,10 @@ for seq_record in SeqIO.parse("TMs.txt", "fasta"):
 	else:
 		nterm = '+'
 	topos[seq_record.id[3:9]] = nterm + str(CountTM(str(seq_record.seq)))
-	
-#print topos
 
 count = 0
-
-for clade in tree.get_nonterminals(order="postorder"): #Gets internal nodes in a list going up the tree
+nodes = tree.get_nonterminals(order="postorder")#Gets internal nodes in a list going up the tree
+for clade in nodes: 
 	sub_branches = clade.clades #the children of each internal node
 	state1 = [] # I want these as lists so I can iterate through them 
 	state2 = []
@@ -58,27 +57,44 @@ for clade in tree.get_nonterminals(order="postorder"): #Gets internal nodes in a
 		state1 = sub_branches[0].name
 	if type(sub_branches[1].name) == list:
 		state2 = sub_branches[1].name
-	print state1, state2
 
 	clade.name = []
 	match = 0
-	"""iterate through each item the child nodes and check if their topologies are the same
+	"""iterate through each item the child nodes and check if their topologies are the same;
 	if there are no matching pairs, then iterate the count and label the next node with those names"""
 	for n in state1: 
 		for i in state2:
-			print topos[n], topos[i]
 			if topos[n] == topos[i]:
 				clade.name = [n]
-				print 'match'
 				match +=1
-				break
-					
+
 	if match == 0:
 		clade.name.extend(state1)
 		clade.name.extend(state2)
 		count+=1
-		print "no match"
 	
-	print "score =", count # count is equal to the number of mutations that have happened 
+print "The total number of mutation events is:", count # count is equal to the number of mutations that have happened 
 
+'''Iterate throught the nodes in the tree and remove child nodes if they are same topology as parent so that 
+it leaves only the changes'''
+for clade in nodes:
+	if type(clade.name) == list:
+		clade.name = ','.join(clade.name) 
+	for child in clade.clades:
+		if child.name in topos and clade.name in topos:
+			if topos[child.name] == topos[clade.name]:
+				try:
+					tree.prune(target=child)
+				except ValueError:
+					pass
+
+	# This renames the internal nodes that are left with their topologies
+	clade.name = ', '.join([topos[n] for n in clade.name.split(',')]) 
+
+# This renames the terminals with their topologies 
+for term in tree.get_terminals():
+	term.name = topos[term.name]
+				
+
+Phylo.draw(tree, show_confidence=False)
 
