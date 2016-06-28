@@ -3,9 +3,9 @@
 from Bio import Phylo
 from Bio import SeqIO
 import re
-import matplotlib.pyplot as plt
+import sys
 
-tree = Phylo.read('Tree.txt', 'newick') #read from file into tree object
+tree = Phylo.read(sys.argv[1], 'newick') #read from file into tree object
 
 # topology related functions from Nanjiang
 GAP = '-'
@@ -19,24 +19,42 @@ def GetNtermState(topo):#{{{
         else:
             return None
 
-def GetTMPosition_gapless(topo):#{{{
+def GetTMPosition(topo):#{{{
     """
-    Get the position of TM helices given the topology (without gaps)
-    The return value is a list of 2-tuples: [ (beg, end), (beg, end)...]
+    Get position of TM helices given a topology
+    this version is much faster (~25 times) than using than finditer
+    updated 2011-10-24
     """
     posTM=[]
-    m=re.finditer("(M+)",topo)
-    for i in m:
-        posTM.append((i.start(0), i.end(0)))
+    lengthTopo=len(topo)
+    b=0
+    e=0
+    while 1:
+        b=topo.find('M',e)
+        if b != -1:
+            m = re.search('[io]', topo[b+1:])
+            if m != None:
+                e = m.start(0)+b+1
+            else:
+                e=lengthTopo
+            if topo[e-1] == GAP:
+                e=topo[:e-1].rfind('M')+1
+            if b == e:
+                print "Error topo[b-10:e+10]=", topo[b-30:e+30]
+                #sys.exit(1)
+                return []
+            posTM.append((b,e))
+        else:
+            break
     return posTM
 
 def CountTM(topo):#{{{
     """Count the number of TM regions in a topology with or without gaps"""
-    return len(GetTMPosition_gapless(topo))
+    return len(GetTMPosition(topo))
 
 #make dictionary of protein IDs and their topologies from topology file using SeqIO
 topos = {}
-for seq_record in SeqIO.parse("TMs.txt", "fasta"):
+for seq_record in SeqIO.parse(sys.argv[2], "fasta"):
 	if GetNtermState(seq_record.seq) == 'i':
 		nterm = '-'
 	else:
@@ -95,6 +113,6 @@ for clade in nodes:
 for term in tree.get_terminals():
 	term.name = topos[term.name]
 				
-
-Phylo.draw(tree, show_confidence=False)
+tree.ladderize()
+Phylo.draw(tree, show_confidence=False) # can be changed to draw_ascii and also to show_confidence=False
 
