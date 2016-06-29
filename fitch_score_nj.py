@@ -230,6 +230,6 @@ def FitchScore_nj1(treefile, topofile):#{{{
 
 
 
-FitchScore_snow1(treefile, topofile)
+#FitchScore_snow1(treefile, topofile)
 FitchScore_nj1(treefile, topofile)
 
