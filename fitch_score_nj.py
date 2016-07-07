@@ -71,6 +71,25 @@ def CountTM(topo):#{{{
     return len(GetTMPosition(topo))
  #}}} 
 
+def score_change(tree):
+	for clade in tree.get_nonterminals(order="preorder"):
+		for child in clade.clades:
+			if clade.name in child.name.split(', '):
+				child.name = clade.name
+			else:
+				dists = []
+				for i in child.name.split(', '):
+					if clade.name[1:] == i[1:]:
+						dists.append(1)
+						change = i 
+					else: 
+						diff = abs(int(clade.name[1:]) - int(i[1:]))
+						dists.append(diff)
+						if diff == min(dists):
+							change = i 
+				print clade.name, 'changed to', change 			
+				child.name = change
+	return tree
 
 def FitchScore_snow1(treefile, topofile):#{{{
 	"""
@@ -147,7 +166,7 @@ def FitchScore_snow1(treefile, topofile):#{{{
 		term.name = topos[term.name]
 					
 	tree.ladderize()
-	Phylo.draw(tree, show_confidence=False) # can be changed to draw_ascii and also to show_confidence=False
+	Phylo.draw(tree, show_confidence=False) # can be changed to draw_ascii and also to show_confidence=True
 
 #}}}
 
@@ -156,7 +175,7 @@ def FitchScore_nj1(treefile, topofile):#{{{
 	Method by Nanjiang
 	"""
 	tree = Phylo.read(treefile, 'newick') #read from file into tree object
-#make dictionary of protein IDs and their topologies from topology file using SeqIO
+	#make dictionary of protein IDs and their topologies from topology file using SeqIO
 	topos = {}
 	for seq_record in SeqIO.parse(topofile, "fasta"):
 		if GetNtermState(seq_record.seq) == 'i':
@@ -212,23 +231,19 @@ def FitchScore_nj1(treefile, topofile):#{{{
 	it leaves only the changes'''
 	for clade in nodes:
 		if type(clade.name) == list:
-			clade.name = ','.join(clade.name) 
+			clade.name = ', '.join(clade.name) 
 		for child in clade.clades:
 			if child.name == clade.name:
 				try:
 					tree.prune(target=child)
 				except ValueError:
 					pass
+	
+	score_change(tree)
 
-		# This renames the internal nodes that are left with their topologies
-		clade.name = ', '.join(clade.name.split(','))
-
-# This renames the terminals with their topologies 
-					
 	tree.ladderize()
-	Phylo.draw(tree, show_confidence=False) # can be changed to draw_ascii and also to show_confidence=False#}}}
-
-
+	Phylo.draw(tree, show_confidence=False) # can be changed to draw_ascii and also to show_confidence=True#}}}					
+	
 
 #FitchScore_snow1(treefile, topofile)
 FitchScore_nj1(treefile, topofile)
