@@ -1,0 +1,17 @@
+> +9
+-MWMWMW-MWM
+> -8
+WMW--MW-MWM
+> -10 (1)
+WMWMWMW-MWM
+> +9
+-MWMWMW-MWM
+> -7
+-WMW-MW-MW-
+> -10 (2)
+-WMWMWMWMWM
+> -3
+------W-MW-
+> +9
+-MWMWMW-MWM
+
